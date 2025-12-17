@@ -10,4 +10,4 @@ venv-ai-doc-intel/
 data/
 
 # Vector DB
-chroma/
+vector_store/chroma/
