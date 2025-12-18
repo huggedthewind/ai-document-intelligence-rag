@@ -11,3 +11,6 @@ data/
 
 # Vector DB
 vector_store/chroma/
+
+# Personal notes
+NOTES.md
