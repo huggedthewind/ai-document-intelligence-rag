@@ -3,3 +3,5 @@ chromadb
 python-dotenv
 requests
 openai
+fastapi
+uvicorn
