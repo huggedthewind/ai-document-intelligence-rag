@@ -80,9 +80,13 @@ def main() -> None:
     texts = [c["text"] for c in filtered]
     metadatas = [
         {
+            "doc_id": c["doc_id"],
+            "title": c["title"],
             "page": c["page"],
             "source": c["source"],
             "chunk_id": c["chunk_id"],
+            "char_start": c["char_start"],
+            "char_end": c["char_end"],
         }
         for c in filtered
     ]
