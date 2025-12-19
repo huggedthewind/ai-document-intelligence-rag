@@ -1,8 +1,10 @@
 """
-Extract page-level text from a single PDF into a JSON file.
+Extract page-level text from all PDFs in data/raw_documents into a single JSON file.
 
-The output JSON is a list of records, one per page, with:
-- page: 1-based page number
+Each output record is one page with:
+- doc_id: identifier derived from the PDF filename (without extension)
+- title: human-readable title (currently same as filename stem)
+- page: 1-based page number within that PDF
 - text: extracted text content
 - source: original PDF filename
 - char_count: length of the extracted text
@@ -13,16 +15,18 @@ import json
 
 from pypdf import PdfReader
 
-PDF_PATH = Path("data/raw_documents/samk_student_guidance.pdf")
+RAW_DIR = Path("data/raw_documents")
 OUT_PATH = Path("data/processed/pages.json")
 
 
-def extract_pages(pdf_path: Path) -> list[dict]:
+def extract_pages(pdf_path: Path, doc_id: str, title: str) -> list[dict]:
     """
-    Extract text from each page of a PDF.
+    Extract text from each page of a single PDF.
 
     Args:
-        pdf_path: Path to the input PDF file.
+        pdf_path: Path to the PDF file.
+        doc_id: Stable identifier for the document (e.g. filename without extension).
+        title: Title for the document.
 
     Returns:
         A list of dictionaries, one per page, containing metadata and text.
@@ -36,6 +40,8 @@ def extract_pages(pdf_path: Path) -> list[dict]:
 
         pages.append(
             {
+                "doc_id": doc_id,
+                "title": title,
                 "page": i,
                 "text": text,
                 "source": pdf_path.name,
@@ -48,24 +54,40 @@ def extract_pages(pdf_path: Path) -> list[dict]:
 
 def main() -> None:
     """
-    Extract all pages from the configured PDF and write them to OUT_PATH.
+    Extract pages from all PDFs under RAW_DIR and write them to OUT_PATH.
     """
-    if not PDF_PATH.exists():
-        raise FileNotFoundError(f"Missing PDF: {PDF_PATH}")
+    if not RAW_DIR.exists():
+        raise FileNotFoundError(f"Missing directory: {RAW_DIR}")
 
-    pages = extract_pages(PDF_PATH)
+    all_pages: list[dict] = []
 
-    total_chars = sum(p["char_count"] for p in pages)
-    empty_pages = [p["page"] for p in pages if p["char_count"] == 0]
+    pdf_files = sorted(RAW_DIR.glob("*.pdf"))
+    if not pdf_files:
+        raise FileNotFoundError(f"No PDF files found in {RAW_DIR}")
 
-    print(f"Pages extracted: {len(pages)}")
+    for pdf_path in pdf_files:
+        doc_id = pdf_path.stem  # e.g. "samk_student_guidance"
+        title = pdf_path.stem   # can be adjusted manually if needed
+
+        print(f"Extracting from {pdf_path} (doc_id={doc_id})")
+        pages = extract_pages(pdf_path, doc_id=doc_id, title=title)
+        all_pages.extend(pages)
+
+    total_chars = sum(p["char_count"] for p in all_pages)
+    empty_pages = [
+        (p["doc_id"], p["page"])
+        for p in all_pages
+        if p["char_count"] == 0
+    ]
+
+    print(f"Total pages extracted: {len(all_pages)} from {len(pdf_files)} PDF(s)")
     print(f"Total characters: {total_chars}")
     if empty_pages:
         print(f"Warning: empty text on pages: {empty_pages}")
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(
-        json.dumps(pages, ensure_ascii=False, indent=2),
+        json.dumps(all_pages, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     print(f"Saved: {OUT_PATH}")

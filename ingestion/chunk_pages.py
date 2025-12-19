@@ -8,7 +8,9 @@ Output:
     data/processed/chunks.json
 
 Each chunk record contains:
-- chunk_id: global running index across all pages
+- doc_id: document identifier
+- title: document title
+- chunk_id: global running index across all documents and pages
 - source: original PDF filename
 - page: 1-based page number
 - text: chunk content
@@ -17,6 +19,7 @@ Each chunk record contains:
 
 import json
 from pathlib import Path
+from collections import Counter
 
 IN_PATH = Path("data/processed/pages.json")
 OUT_PATH = Path("data/processed/chunks.json")
@@ -30,6 +33,8 @@ def chunk_text(
     text: str,
     page: int,
     source: str,
+    doc_id: str,
+    title: str,
     start_chunk_id: int,
 ) -> tuple[list[dict], int]:
     """
@@ -50,7 +55,7 @@ def chunk_text(
     if not text:
         return [], start_chunk_id
 
-    chunks: list[dict] = []
+    chunks = []
     chunk_id = start_chunk_id
 
     start = 0
@@ -61,6 +66,7 @@ def chunk_text(
         chunk_start = start
         raw = text[chunk_start:end]
 
+        # avoid starting in the middle of a word
         if chunk_start != 0 and raw and raw[0].isalnum():
             shift = 0
             while shift < len(raw) and raw[shift].isalnum():
@@ -73,6 +79,8 @@ def chunk_text(
         if chunk:
             chunks.append(
                 {
+                    "doc_id": doc_id,
+                    "title": title,
                     "chunk_id": chunk_id,
                     "source": source,
                     "page": page,
@@ -94,14 +102,16 @@ def main() -> None:
     """
     pages = json.loads(IN_PATH.read_text(encoding="utf-8"))
 
-    all_chunks: list[dict] = []
+    all_chunks = []
     next_chunk_id = 0
 
-    for page_record in pages:
+    for p in pages:
         page_chunks, next_chunk_id = chunk_text(
-            text=page_record.get("text", ""),
-            page=page_record.get("page"),
-            source=page_record.get("source"),
+            text=p.get("text", ""),
+            page=p.get("page"),
+            source=p.get("source"),
+            doc_id=p.get("doc_id"),
+            title=p.get("title"),
             start_chunk_id=next_chunk_id,
         )
         all_chunks.extend(page_chunks)
@@ -111,6 +121,16 @@ def main() -> None:
         json.dumps(all_chunks, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
+
+    # sanity prints
+    print(f"Pages read: {len(pages)}")
+    print(f"Chunks written: {len(all_chunks)}")
+
+    by_doc = Counter(c["doc_id"] for c in all_chunks)
+    for doc_id, count in by_doc.items():
+        print(f"  - {doc_id}: {count} chunks")
+
+    print(f"Saved: {OUT_PATH}")
 
 
 if __name__ == "__main__":
