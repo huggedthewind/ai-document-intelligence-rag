@@ -55,21 +55,34 @@ def get_relevant_chunks(question: str, k: int = 5, doc_id: str | None = None) ->
     return list(zip(docs, metas, dists))
 
 
-def build_prompt(question: str, chunks: list[tuple[str, dict, float]]) -> str:
+def build_prompt(question: str, chunks) -> str:
     """
-    Build a single prompt string containing the question and retrieved context.
+    Build a grounded prompt for the LLM using retrieved chunks as context.
     """
     parts: list[str] = []
     for i, (doc, meta, _dist) in enumerate(chunks, start=1):
         parts.append(
-            f"[Chunk {i} | doc_id {meta.get('doc_id')} | page {meta.get('page')} | chunk_id {meta.get('chunk_id')}]\n"
+            f"[Chunk {i} | doc_id={meta.get('doc_id')} | "
+            f"title={meta.get('title')} | page={meta.get('page')} | "
+            f"chunk_id={meta.get('chunk_id')}]\n"
             f"{doc}"
         )
     context = "\n\n".join(parts)
 
-    prompt = f"""You are an assistant that answers questions about one or more PDF publication from Satakunta University of Applied Sciences.
+    prompt = f"""You are an assistant that answers questions about one or more PDF publications
+from Satakunta University of Applied Sciences and partner universities.
 
-Use only the information in the context below. If the answer is not clearly stated there, say that you cannot find it in the document.
+You MUST follow these rules:
+
+- Use ONLY the information in the context below.
+- If the answer is not clearly stated in the context, say:
+  "I cannot find the answer in the provided documents."
+- Do NOT invent new facts or speculate beyond the context.
+- If multiple documents are mentioned, be explicit which document you are using
+  (refer to doc_id or title).
+- When possible, mention page numbers in parentheses, e.g. "(page 6)".
+- Ignore noisy parts like long reference lists, URLs or metadata when answering.
+- Answer in the same language as the question.
 
 Question:
 {question}
@@ -77,7 +90,8 @@ Question:
 Context:
 {context}
 
-Answer clearly and concisely. If relevant, mention page numbers in parentheses.
+Now write a clear, concise answer for the user. If relevant, include a short reference section like:
+"Based on: [title], page X".
 """
 
     return prompt
