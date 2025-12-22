@@ -1,5 +1,5 @@
 """
-Split page-level text into overlapping chunks suitable for embeddings.
+Split page-level text into paragraph-aware chunks suitable for embeddings.
 
 Input:
     data/processed/pages.json  (output of extract_text.py)
@@ -13,23 +13,50 @@ Each chunk record contains:
 - chunk_id: global running index across all documents and pages
 - source: original PDF filename
 - page: 1-based page number
-- text: chunk content
+- text: chunk content (one or more paragraphs)
 - char_start / char_end: character offsets within the full page text
 """
 
 import json
+import re
 from pathlib import Path
 from collections import Counter
+from typing import List, Dict, Tuple
 
 IN_PATH = Path("data/processed/pages.json")
 OUT_PATH = Path("data/processed/chunks.json")
 
-CHUNK_SIZE = 600
-OVERLAP = 150
-STEP = CHUNK_SIZE - OVERLAP
+MAX_CHARS_PER_CHUNK = 800
+
+def split_paragraphs(text: str) -> List[Tuple[str, int, int]]:
+    """
+    Split page text into paragraphs separated by blank lines.
+
+    Returns a list of (paragraph_text, start_index, end_index) in the original text.
+    """
+    text = text or ""
+    text = text.replace("\r\n", "\n")
+
+    # Match blocks of text separated by one or more blank lines
+    pattern = re.compile(r"(.*?)(?:\ns*\n|$)", re.DOTALL)
+    paragraphs: List[Tuple[str, int, int]] = []
+
+    for match in pattern.finditer(text):
+        paragraph = match.group(1)
+        if not paragraph:
+            continue
+        paragraph_stripped = paragraph.strip()
+        if not paragraph_stripped:
+            continue
+
+        start = match.start(1)
+        end = match.end(1)
+        paragraphs.append((paragraph_stripped, start, end))
+
+    return paragraphs
 
 
-def chunk_text(
+def chunk_page(
     text: str,
     page: int,
     source: str,
@@ -38,19 +65,13 @@ def chunk_text(
     start_chunk_id: int,
 ) -> tuple[list[dict], int]:
     """
-    Split a single page's text into overlapping character-based chunks.
-
-    Args:
-        text: Page text to split.
-        page: 1-based page number.
-        source: Original PDF filename.
-        start_chunk_id: Global chunk id to start from.
-
-    Returns:
-        A tuple of (chunks, next_chunk_id), where:
-            - chunks is a list of chunk dicts
-            - next_chunk_id is the next free id after the last chunk
+    Build chunks from a single page by grouping paragraphs
+    until MAX_CHARS_PER_CHUNK is reached.
     """
+    paragraphs = split_paragraphs(text)
+    if not paragraphs:
+        return [], start_chunk_id
+    
     text = (text or "").strip()
     if not text:
         return [], start_chunk_id
@@ -58,40 +79,61 @@ def chunk_text(
     chunks = []
     chunk_id = start_chunk_id
 
-    start = 0
-    n = len(text)
+    current_text_parts: List[str] = []
+    current_start: int | None = None
+    current_end: int | None = None
 
-    while start < n:
-        end = start + CHUNK_SIZE
-        chunk_start = start
-        raw = text[chunk_start:end]
+    def flush_current():
+        nonlocal chunk_id, current_text_parts, current_start, current_end
 
-        # avoid starting in the middle of a word
-        if chunk_start != 0 and raw and raw[0].isalnum():
-            shift = 0
-            while shift < len(raw) and raw[shift].isalnum():
-                shift += 1
-            chunk_start = chunk_start + shift
-            raw = text[chunk_start:end]
+        if not current_text_parts or current_start is None or current_end is None:
+            return
 
-        chunk = raw.strip()
+        chunk_text = "\n\n".join(current_text_parts).strip()
+        if not chunk_text:
+            return
+        
+        chunks.append(
+            {
+                "doc_id": doc_id,
+                "title": title,
+                "chunk_id": chunk_id,
+                "source": source,
+                "page": page,
+                "text": chunk_text,
+                "char_start": current_start,
+                "char_end": current_end,
+            }
+        )
+        chunk_id += 1
 
-        if chunk:
-            chunks.append(
-                {
-                    "doc_id": doc_id,
-                    "title": title,
-                    "chunk_id": chunk_id,
-                    "source": source,
-                    "page": page,
-                    "text": chunk,
-                    "char_start": chunk_start,
-                    "char_end": min(end, n),
-                }
-            )
-            chunk_id += 1
+        current_text_parts = []
+        current_start = None
+        current_end = None
 
-        start += STEP
+    for para_text, para_start, para_end in paragraphs:
+        if not current_text_parts:
+            # start a new chunk
+            current_text_parts = [para_text]
+            current_start = para_start
+            current_end = para_end
+            continue
+
+        # if adding this paragraph would exceed max size -> flush current chunk
+        projected_length = len("\n\n".join(current_text_parts)) + 2 + len(para_text)
+        if projected_length > MAX_CHARS_PER_CHUNK:
+            flush_current()
+            # start a new chunk with this paragraph
+            current_text_parts = [para_text]
+            current_start = para_start
+            current_end = para_end
+        else:
+            # append paragraph to current chunk
+            current_text_parts.append(para_text)
+            current_end = para_end
+
+    # flush any remaining text
+    flush_current()
 
     return chunks, chunk_id
 
@@ -106,7 +148,7 @@ def main() -> None:
     next_chunk_id = 0
 
     for p in pages:
-        page_chunks, next_chunk_id = chunk_text(
+        page_chunks, next_chunk_id = chunk_page(
             text=p.get("text", ""),
             page=p.get("page"),
             source=p.get("source"),
