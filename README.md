@@ -192,21 +192,38 @@ You can type a question and see which chunks are retrieved, with:
 Useful for debugging retrieval quality.
 
 ### 4. Ask questions via CLI (RAG)
+Basic usage (search across all documents):
 ```bash
-python app/answer_question.py "What is the objective of this handbook?"
-
-#OR
-
-python app/answer_question.py
-# then type your question when prompted
+python app/answer_question.py "How does SAMK use Erasmus+ to support internationalisation?"
 ```
 
-This will:
+Scope to a single document with --doc-id:
+```bash
+# Guidance handbook only
+python app/answer_question.py \
+  "What is the objective of this handbook?" \
+  --doc-id samk_student_guidance
+
+# Admissions criteria only
+python app/answer_question.py \
+  "What are the selection methods for the Data Engineering degree programme?" \
+  --doc-id samk_admissions_2025
+
+# Erasmus+ policy only
+python app/answer_question.py \
+  "How does SAMK use Erasmus+ to support internationalisation?" \
+  --doc-id samk_erasmus_policy
+```
+
+The script will:
+
 - embed the question,
-- retrieve top-k chunks from Chroma,
-- build a prompt with page references,
-- call OpenAI gpt-4.1-mini,
-- and print a grounded answer.
+- retrieve top-k relevant chunks from Chroma (optionally filtered by `doc_id`),
+- build a grounded prompt (with doc + page refs),
+- call `gpt-4.1-mini`,
+- print a concise answer.
+
+If the answer is **not** in the context, it explicitly says it cannot find it in the documents.
 
 ### 5. Ask questions via FastAPI
 
@@ -218,11 +235,20 @@ uvicorn app.api:app --reload
 Then open the interactive docs:
 - http://127.0.0.1:8000/docs
 
-Example request (curl):
-```bash
-curl -X POST "http://127.0.0.1:8000/ask" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Who is this publication intended for?", "top_k": 5}'
+Example request body for POST /ask:
+```json
+{
+  "question": "What are the selection methods for the Data Engineering degree programme?",
+  "top_k": 5,
+  "doc_id": "samk_admissions_2025"
+}
+```
+Or across all documents:
+```json
+{
+  "question": "How does SAMK support students at the beginning of their studies?",
+  "top_k": 5
+}
 ```
 
 ## Evaluation
@@ -232,37 +258,45 @@ Manual evaluation is recorded in:
 eval/manual_eval.md
 ```
 
-Examples:
+It includes:
 
-- Question: “Who is this publication intended for?”
- Answer correctly identifies guidance / counselling staff at SAMK and students.
-
-- Question: “What is the objective of this handbook?”
- Answer matches the stated aim: introduce the background of guidance and counselling, support and harmonise practices, and provide tools.
-
-Some more open or abstract questions produce partial or generalized answers, which is expected for this first version.
+- questions per document,
+- short summaries of the answers,
+- verdicts (good / ok / bad),
+- notes on retrieval + answer quality,
+- a negative test (out-of-scope question → model correctly says “not in docs”).
 
 ## Limitations and Possible Future Work
 
-- Only a single PDF is indexed.
-- Chunking is character-based with overlap, not sentence- or paragraph-aware.
-- No reranking step beyond basic vector similarity.
-- Evaluation is manual and small-scale.
+Current limitations:
 
-Possible future improvements:
+- Only a **small set of PDFs** (SAMK-focused).
+- No **reranking step** beyond basic vector similarity.
+- No **automated evaluation** – only manual checks.
+- The API is minimal, and there is no separate web UI yet.
 
-- Sentence- or paragraph-aware chunking.
-- Reranking of top-k chunks with a cross-encoder or LLM.
-- Support for multiple documents and collections.
-- Simple web UI on top of the FastAPI backend.
+Potential improvements:
+
+- Sentence-level chunking or hybrid sentence+paragraph strategy.
+- Reranking using a cross-encoder or LLM.
+- Support for tagging / grouping documents by topic or audience.
+- Simple web UI (Streamlit or small frontend) on top of the FastAPI backend.
 - More systematic evaluation with a larger question set.
+
+Milestones
+
+- **v1** – single-PDF RAG
+    - One handbook, fixed-size character chunks, local Chroma, CLI retrieval.
+
+- **v2** – multi-doc, paragraph-aware RAG
+    - Multiple SAMK PDFs, paragraph-based chunks, doc-scoped retrieval, grounded LLM answers, FastAPI endpoint, and manual evaluation.
 
 ## Tech Stack
 
-- Language: Python 3.12
-- Ingestion: pypdf
-- Embeddings: sentence-transformers (all-MiniLM-L6-v2)
-- Vector DB: chromadb (persistent, local)
-- LLM: OpenAI gpt-4.1-mini
-- API: FastAPI + Uvicorn
-- Env: venv-ai-doc-intel
+- Language: **Python 3.12**
+- Ingestion: **pypdf**
+- Embeddings: **sentence-transformers** (all-MiniLM-L6-v2)
+- Vector DB: **Chroma** (persistent, local)
+- LLM: **OpenAI gpt-4.1-mini**
+- API: **FastAPI + Uvicorn**
+- Env: `venv-ai-doc-intel`
