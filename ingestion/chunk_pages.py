@@ -38,7 +38,7 @@ def split_paragraphs(text: str) -> List[Tuple[str, int, int]]:
     text = text.replace("\r\n", "\n")
 
     # Match blocks of text separated by one or more blank lines
-    pattern = re.compile(r"(.*?)(?:\ns*\n|$)", re.DOTALL)
+    pattern = re.compile(r"(.*?)(?:\n\s*\n|$)", re.DOTALL)
     paragraphs: List[Tuple[str, int, int]] = []
 
     for match in pattern.finditer(text):
