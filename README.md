@@ -1,15 +1,17 @@
 # AI Document Intelligence – RAG over SAMK Guidance Handbook
 
-An end-to-end Retrieval-Augmented Generation (RAG) system that answers questions about a single PDF:
+An end-to-end Retrieval-Augmented Generation (RAG) system that answers questions about  multiple SAMK-related PDFs:
 
-> **“Student guidance and counselling at Satakunta University of Applied Sciences”**
+- **Student guidance and counselling at Satakunta University of Applied Sciences**
+- **Admissions Criteria, Spring 2025**
+- **Erasmus+ Policy / Internationalisation**
 
 The goal is to learn how real-world AI systems are built in practice:
 - ingest documents,
-- chunk them,
+- chunk them into meaningful units,
 - build a vector index,
 - retrieve relevant context,
-- let an LLM generate grounded answers.
+- let an LLM generate grounded answers with page references.
 
 This is an applied AI / data engineering project, not a model training project.
 
@@ -17,13 +19,39 @@ This is an applied AI / data engineering project, not a model training project.
 
 ## Features
 
-- **PDF ingestion** → page-level JSON
-- **Chunking** with overlap and word-boundary snapping
-- **Semantic search** over chunks using sentence-transformers + Chroma
-- **RAG-style Q&A** using OpenAI (`gpt-4.1-mini`)
-- **Manual evaluation** of answer quality
-- **FastAPI endpoint** (`POST /ask`) for programmatic access
-- **Developer tools** to inspect raw retrieval results
+- **Multi-document support**
+  - Ingests all PDFs in `data/raw_documents/`
+  - Each chunk tagged with `doc_id`, `title`, `page`, etc.
+  - Optional `doc_id` filter for “answer only from this document”
+
+- **Ingestion**
+  - `pypdf` → page-level JSON (`pages.json`)
+  - Keeps metadata: `doc_id`, `title`, `page`, `source`, `char_count`
+
+- **Paragraph-aware chunking**
+  - Splits pages into paragraphs (blank-line separated)
+  - Groups paragraphs into chunks up to ~800 characters
+  - Preserves `char_start` / `char_end` offsets per page
+
+- **Semantic search**
+  - Embeddings via `sentence-transformers` (`all-MiniLM-L6-v2`)
+  - Local persistent vector DB with **Chroma**
+  - Noise filtering (reference lists, ISBN/ISSN/DOI/URL-heavy, very short text)
+
+- **RAG-style Q&A**
+  - CLI tool: `app/answer_question.py`
+  - LLM: `gpt-4.1-mini` via OpenAI Responses API
+  - Uses top-k chunks as context, with doc + page references
+  - Refuses to answer if context doesn’t contain the answer
+
+- **API**
+  - FastAPI app in `app/api.py`
+  - `POST /ask` endpoint for programmatic access
+  - Optional `doc_id` and `top_k` in request body
+
+- **Debugging tools**
+  - `vector_store/retrieve.py` – inspect raw top-k retrieved chunks
+  - `eval/manual_eval.md` – manual evaluation of answer quality
 
 ---
 
@@ -33,28 +61,39 @@ This is an applied AI / data engineering project, not a model training project.
 
 ```mermaid
 flowchart TD
-    PDF["PDF: SAMK guidance handbook"]
-    ET["extract_text.py<br/>PDF → pages.json"]
-    CP["chunk_pages.py<br/>pages → chunks.json"]
+    PDFs["PDFs in data/raw_documents/"]
+    ET["extract_text.py<br/>PDFs → pages.json"]
+    CP["chunk_pages.py<br/>pages → paragraph chunks.json"]
     BI["build_index.py<br/>chunks → Chroma index"]
     DB["Chroma (rag-chunks)"]
     Q["User question"]
-    AQ["answer_question.py<br/>/ app.api"]
+    AQ["answer_question.py / app.api"]
     EMB["SentenceTransformer<br/>all-MiniLM-L6-v2"]
-    CTX["Top-k chunks"]
+    CTX["Top-k chunks (optionally filtered by doc_id)"]
     LLM["OpenAI gpt-4.1-mini"]
-    A["Grounded answer"]
+    A["Grounded answer with page refs"]
 
-    PDF --> ET --> CP --> BI --> DB
+    PDFs --> ET --> CP --> BI --> DB
     Q --> AQ --> EMB --> DB --> CTX --> LLM --> A
 ```
 ## Dataset
 
-This project uses the publication: "Student Guidance and Counselling at Satakunta University of Applied Sciences" by Satakunta University of Applied Sciences.
+This project uses three documents:
 
-The document is not included in this repository due to copyright restrictions. It can be downloaded for free from the Theseus repository and placed in:
+- **samk_student_guidance**
+Student guidance and counselling at Satakunta University of Applied Sciences
 
-data/raw_documents/
+- **samk_admissions_2025**
+Admissions Criteria, Spring 2025
+
+- **samk_erasmus_policy**
+Erasmus+ policy / internationalisation at SAMK
+
+**Important**:
+The PDFs are not included in this repository due to copyright.
+You can download them (or equivalent SAMK publications) and place them in:
+
+`data/raw_documents/`
 
 ## Project Structure
 ```bash
