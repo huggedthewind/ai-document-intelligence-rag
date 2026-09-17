@@ -43,3 +43,14 @@ class Answer(BaseClass):
     text: Mapped[str] = mapped_column(Text)
 
     query: Mapped["Query"] = relationship(back_populates="answers")
+    evaluation: Mapped["Evaluation"] = relationship(back_populates="answers")
+
+class Evaluation(BaseClass):
+    __tablename__ = "evaluations"
+
+    evaluation_id: Mapped[int] = mapped_column(primary_key=True)
+    answer_id: Mapped[int] = mapped_column(ForeignKey("answers.answer_id"), unique=True)
+    verdict: Mapped[str] = mapped_column(String(100))
+    notes: Mapped[str] = mapped_column(Text)
+
+    answer: Mapped["Answer"] = relationship(back_populates="evaluations")
