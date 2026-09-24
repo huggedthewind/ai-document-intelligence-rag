@@ -43,7 +43,7 @@ class Answer(BaseClass):
     text: Mapped[str] = mapped_column(Text)
 
     query: Mapped["Query"] = relationship(back_populates="answers")
-    evaluation: Mapped["Evaluation"] = relationship(back_populates="answers")
+    evaluation: Mapped["Evaluation"] = relationship(back_populates="answer")
 
 class Evaluation(BaseClass):
     __tablename__ = "evaluations"
@@ -53,4 +53,4 @@ class Evaluation(BaseClass):
     verdict: Mapped[str] = mapped_column(String(100))
     notes: Mapped[str] = mapped_column(Text)
 
-    answer: Mapped["Answer"] = relationship(back_populates="evaluations")
+    answer: Mapped["Answer"] = relationship(back_populates="evaluation")
