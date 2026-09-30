@@ -15,6 +15,7 @@ class Chunk(BaseClass):
     char_end: Mapped[int] = mapped_column()
 
     document: Mapped["Document"] = relationship(back_populates="chunks")
+    retrieved_chunks: Mapped[list["RetrievedChunk"]] = relationship(back_populates="chunk")
 
 class Document(BaseClass):
     __tablename__ = "documents"
@@ -34,6 +35,8 @@ class Query(BaseClass):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     answers: Mapped[list["Answer"]] = relationship(back_populates="query")
+    retrieved_chunks: Mapped[list["RetrievedChunk"]] = relationship(back_populates="query")
+
 
 class Answer(BaseClass):
     __tablename__ = "answers"
@@ -54,3 +57,14 @@ class Evaluation(BaseClass):
     notes: Mapped[str] = mapped_column(Text)
 
     answer: Mapped["Answer"] = relationship(back_populates="evaluation")
+
+class RetrievedChunk(BaseClass):
+    __tablename__ = "retrieved_chunks"
+
+    query_id: Mapped[int] = mapped_column(ForeignKey("queries.query_id"), primary_key=True)
+    chunk_id: Mapped[int] = mapped_column(ForeignKey("chunks.chunk_id"), primary_key=True)
+    rank: Mapped[int] = mapped_column()
+    distance: Mapped[float] = mapped_column()
+
+    chunk: Mapped["Chunk"] = relationship(back_populates="retrieved_chunks")
+    query: Mapped["Query"] = relationship(back_populates="retrieved_chunks")
