@@ -97,13 +97,13 @@ Now write a clear, concise answer for the user. If relevant, include a short ref
     return prompt
 
 
-def answer_question(question: str, k: int = 5, doc_id: str | None = None) -> str:
+def answer_question(question: str, k: int = 5, doc_id: str | None = None) -> tuple[str, list]:
     """
     Run retrieval and generation to answer a question based on the document.
     """
     chunks = get_relevant_chunks(question, k=k, doc_id=doc_id)
     if not chunks:
-        return "No relevant context found in the knowledge base."
+        return "No relevant context found in the knowledge base.", chunks
 
     load_dotenv()
     client = OpenAI()
@@ -115,7 +115,7 @@ def answer_question(question: str, k: int = 5, doc_id: str | None = None) -> str
         input=prompt,
     )
 
-    return response.output_text
+    return response.output_text, chunks
 
 
 def main() -> None:
