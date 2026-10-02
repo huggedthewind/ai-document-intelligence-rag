@@ -63,7 +63,7 @@ def build_prompt(question: str, chunks) -> str:
     for i, (doc, meta, _dist) in enumerate(chunks, start=1):
         parts.append(
             f"[Chunk {i} | doc_id={meta.get('doc_id')} | "
-            f"title={meta.get('title')} | page={meta.get('page')} | "
+            f"page={meta.get('page')} | "
             f"chunk_id={meta.get('chunk_id')}]\n"
             f"{doc}"
         )

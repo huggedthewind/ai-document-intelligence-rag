@@ -2,35 +2,35 @@
 Build a persistent Chroma vector index from precomputed text chunks.
 
 Input:
-    data/processed/chunks.json  (output of chunk_pages.py)
+    All chunk records from the database
 
 Output:
     A Chroma collection stored under vector_store/chroma containing:
     - ids: chunk_ids as strings
     - documents: chunk text
-    - metadatas: page, source, chunk_id
+    - metadatas: doc_id, page, chunk_id, char_start, char_end
     - embeddings: vector representations of each chunk
 """
 
-import json
-from pathlib import Path
-
 import chromadb
 from sentence_transformers import SentenceTransformer
+from db.session import SessionLocal
+from sqlalchemy import select
+from db.models import Chunk
 
-CHUNKS_PATH = Path("data/processed/chunks.json")
 DB_DIR = "vector_store/chroma"
 COLLECTION_NAME = "rag-chunks"
 MODEL_NAME = "all-MiniLM-L6-v2"
 
 
-def load_chunks() -> list[dict]:
+def load_chunks(session) -> list[Chunk]:
     """
-    Load chunk records from disk.
+    Load all chunk records from the database using the given session.
     """
-    with CHUNKS_PATH.open("r", encoding="utf-8") as f:
-        chunks = json.load(f)
-    print(f"Loaded {len(chunks)} chunks")
+    
+    result = session.execute(select(Chunk)) 
+    chunks = result.scalars().all()
+
     return chunks
 
 
@@ -61,34 +61,34 @@ def main() -> None:
     """
     Build or rebuild the Chroma collection from filtered chunks.
     """
-    chunks = load_chunks()
+    session = SessionLocal()
 
-    filtered = [c for c in chunks if not is_noise(c["text"])]
+    chunks = load_chunks(session)
+
+    filtered = [chunk for chunk in chunks if not is_noise(chunk.text)]
     print(f"Kept {len(filtered)} chunks, removed {len(chunks) - len(filtered)} noisy chunks")
 
     model = SentenceTransformer(MODEL_NAME)
 
     client = chromadb.PersistentClient(path=DB_DIR)
 
-    existing = [c.name for c in client.list_collections()]
+    existing = [coll.name for coll in client.list_collections()]
     if COLLECTION_NAME in existing:
         client.delete_collection(name=COLLECTION_NAME)
 
     collection = client.get_or_create_collection(name=COLLECTION_NAME)
 
-    ids = [str(c["chunk_id"]) for c in filtered]
-    texts = [c["text"] for c in filtered]
+    ids = [str(chunk.chunk_id) for chunk in filtered]
+    texts = [chunk.text for chunk in filtered]
     metadatas = [
         {
-            "doc_id": c["doc_id"],
-            "title": c["title"],
-            "page": c["page"],
-            "source": c["source"],
-            "chunk_id": c["chunk_id"],
-            "char_start": c["char_start"],
-            "char_end": c["char_end"],
+            "doc_id": chunk.doc_id,
+            "page": chunk.page,
+            "chunk_id": chunk.chunk_id,
+            "char_start": chunk.char_start,
+            "char_end": chunk.char_end,
         }
-        for c in filtered
+        for chunk in filtered
     ]
 
     embeddings = model.encode(texts, normalize_embeddings=True).tolist()
@@ -102,6 +102,8 @@ def main() -> None:
 
     print("After add, count =", collection.count())
     print(f"Indexed {len(filtered)} chunks into Chroma DB at '{DB_DIR}'")
+    
+    session.close()
 
 
 if __name__ == "__main__":
