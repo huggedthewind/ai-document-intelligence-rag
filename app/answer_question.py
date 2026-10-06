@@ -84,11 +84,11 @@ You MUST follow these rules:
 - Ignore noisy parts like long reference lists, URLs or metadata when answering.
 - Answer in the same language as the question.
 
-Question:
-{question}
-
 Context:
 {context}
+
+Question:
+{question}
 
 Now write a clear, concise answer for the user. If relevant, include a short reference section like:
 "Based on: [title], page X".
@@ -145,7 +145,7 @@ def main() -> None:
         print("No question provided.")
         return
 
-    answer = answer_question(question, doc_id=args.doc_id)
+    answer, _chunks = answer_question(question, doc_id=args.doc_id)
 
     print("\n=== Answer ===\n")
     print(answer)
