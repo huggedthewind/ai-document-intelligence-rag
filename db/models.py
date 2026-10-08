@@ -57,7 +57,10 @@ class Evaluation(BaseClass):
     evaluation_id: Mapped[int] = mapped_column(primary_key=True)
     answer_id: Mapped[int] = mapped_column(ForeignKey("answers.answer_id"), unique=True)
     verdict: Mapped[str] = mapped_column(String(100))
+    human_verdict: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str] = mapped_column(Text)
+    judge_model: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     answer: Mapped["Answer"] = relationship(back_populates="evaluation")
 
@@ -68,6 +71,7 @@ class RetrievedChunk(BaseClass):
     chunk_id: Mapped[int] = mapped_column(ForeignKey("chunks.chunk_id"), primary_key=True)
     rank: Mapped[int] = mapped_column()
     distance: Mapped[float] = mapped_column()
+    relevant: Mapped[bool | None] = mapped_column()
 
     chunk: Mapped["Chunk"] = relationship(back_populates="retrieved_chunks")
     query: Mapped["Query"] = relationship(back_populates="retrieved_chunks")
