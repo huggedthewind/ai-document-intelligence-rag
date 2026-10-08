@@ -24,6 +24,7 @@ class Document(BaseClass):
     title: Mapped[str] = mapped_column(String(255))
 
     chunks: Mapped[list["Chunk"]] = relationship(back_populates="document")
+    test_questions: Mapped[list["TestQuestion"]] = relationship(back_populates="document")
 
 class Query(BaseClass):
     __tablename__ = "queries"
@@ -33,9 +34,11 @@ class Query(BaseClass):
     doc_id: Mapped[str | None] = mapped_column(String(100), ForeignKey("documents.doc_id"))
     top_k: Mapped[int] = mapped_column(default=5)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    test_question_id: Mapped[int | None] = mapped_column(ForeignKey("test_questions.test_question_id"))
 
     answers: Mapped[list["Answer"]] = relationship(back_populates="query")
     retrieved_chunks: Mapped[list["RetrievedChunk"]] = relationship(back_populates="query")
+    test_question: Mapped["TestQuestion"] = relationship(back_populates="queries")
 
 
 class Answer(BaseClass):
@@ -68,3 +71,15 @@ class RetrievedChunk(BaseClass):
 
     chunk: Mapped["Chunk"] = relationship(back_populates="retrieved_chunks")
     query: Mapped["Query"] = relationship(back_populates="retrieved_chunks")
+
+class TestQuestion(BaseClass):
+    __tablename__ = "test_questions"
+
+    test_question_id: Mapped[int] = mapped_column(primary_key=True)
+    question: Mapped[str] = mapped_column(Text)
+    doc_id: Mapped[str | None] = mapped_column(String(100), ForeignKey("documents.doc_id"))
+    page: Mapped[int | None] = mapped_column()
+    reference_answer: Mapped[str] = mapped_column(Text)
+
+    document: Mapped["Document"] = relationship(back_populates="test_questions")
+    queries: Mapped[list["Query"]] = relationship(back_populates="test_question")
