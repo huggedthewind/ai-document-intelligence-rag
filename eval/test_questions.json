@@ -1,0 +1,152 @@
+[
+  {
+    "question": "How can prospective students prove they speak English well enough for the International UAS Exam?",
+    "doc_id": "samk_admissions_2025",
+    "page": 8,
+    "reference_answer": "They need to show their English proficiency through either a formal language test or their past academic studies."
+  },
+  {
+    "question": "What is the lowest acceptable grade for advanced English in the matriculation exams for certificate-based admissions?",
+    "doc_id": "samk_admissions_2025",
+    "page": 10,
+    "reference_answer": "Candidates need to achieve at least a grade C in the advanced English syllabus to qualify for this selection route."
+  },
+  {
+    "question": "How is the International UAS Exam administered?",
+    "doc_id": "samk_admissions_2025",
+    "page": 11,
+    "reference_answer": "It is a joint digital written test that applicants take remotely."
+  },
+  {
+    "question": "Is an SAT score accepted for admissions, and if so, what is the first section evaluated?",
+    "doc_id": "samk_admissions_2025",
+    "page": 12,
+    "reference_answer": "Yes, SAT scores are accepted, and the first section considered is Evidence-Based Reading and Writing."
+  },
+  {
+    "question": "Do I need to take a Finnish language exam organized by SAMK to be admitted?",
+    "doc_id": "samk_admissions_2025",
+    "page": 15,
+    "reference_answer": "No, the university does not arrange or mandate any Finnish language examinations for admission."
+  },
+  {
+    "question": "What happens if a refugee cannot provide official documents proving their previous education?",
+    "doc_id": "samk_admissions_2025",
+    "page": 22,
+    "reference_answer": "SAMK can invite the applicant to sit an entrance exam even without documentary evidence of the qualification."
+  },
+  {
+    "question": "What timeframe does the Erasmus Policy Statement cover?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 1,
+    "reference_answer": "The statement covers the period from 2021 to 2027."
+  },
+  {
+    "question": "How does the institution describe its educational goals in relation to its #2030 vision?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 1,
+    "reference_answer": "The university aims to be a high-quality institution that offers international-level education, providing students with top-class skills for their professional development."
+  },
+  {
+    "question": "Which degree level primarily participates in the exchange programs?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 2,
+    "reference_answer": "The exchanges are mainly focused on students in the first cycle."
+  },
+  {
+    "question": "How does participating in European exchange initiatives benefit students coming from outside the European Union?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 2,
+    "reference_answer": "It makes the university attractive to these students by allowing them to complete a portion of their degree at another higher education institution in Europe."
+  },
+  {
+    "question": "What demographic issue is creating difficulties for the region mentioned in the strategy?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 3,
+    "reference_answer": "The region faces a significant age gap, where large older generations are retiring and there are fewer young people entering the workforce."
+  },
+  {
+    "question": "What has limited mobility and cooperation with far-off locations, according to the Erasmus policy?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 3,
+    "reference_answer": "Resources for mobility and other cooperation have been limited."
+  },
+  {
+    "question": "Are employees happy with how much the university supports them in going abroad?",
+    "doc_id": "samk_erasmus_policy",
+    "page": 4,
+    "reference_answer": "Yes, all staff members are quite satisfied with the level of encouragement towards mobility."
+  },
+  {
+    "question": "According to the introduction, what is the goal of providing advice to learners?",
+    "doc_id": "samk_student_guidance",
+    "page": 5,
+    "reference_answer": "The goal is to build and train them for a sustainable future."
+  },
+  {
+    "question": "What core values are essential for building a strong relationship between an advisor and a learner?",
+    "doc_id": "samk_student_guidance",
+    "page": 8,
+    "reference_answer": "The relationship should be equal, confidential and open."
+  },
+  {
+    "question": "Based on recent research cited in the text, how do we define the concept of being aware of tomorrow?",
+    "doc_id": "samk_student_guidance",
+    "page": 10,
+    "reference_answer": "It is defined as the capability of both individuals and groups to recognize various potential futures and critically consider the values and perceptions related to them."
+  },
+  {
+    "question": "Why is it so crucial to help university learners develop their sense of agency?",
+    "doc_id": "samk_student_guidance",
+    "page": 15,
+    "reference_answer": "Fostering this sense of agency not only benefits them during their education but also enhances their ability to adapt professionally in their future careers."
+  },
+  {
+    "question": "Which specific reform integrated working-life skills into all of the university's study programs?",
+    "doc_id": "samk_student_guidance",
+    "page": 19,
+    "reference_answer": "The OPS reform of 2021-2023, known as 'Towards sustainable pedagogy and learning', integrated these competences into the curricula."
+  },
+  {
+    "question": "What elements should be taken into account when customizing a learner's individual education path?",
+    "doc_id": "samk_student_guidance",
+    "page": 21,
+    "reference_answer": "Customization should factor in previous coursework, employment history, and personal interests to help build skills and plan their career."
+  },
+  {
+    "question": "How can learners evaluate and manage their dedication to their studies during the middle stage of their education?",
+    "doc_id": "samk_student_guidance",
+    "page": 23,
+    "reference_answer": "They can identify what boosts or hurts their drive, and figure out how to balance their studies, job, family, and free time to stay on schedule."
+  },
+  {
+    "question": "Who takes over the advising role if a learner fails to finish their degree within the standard timeframe?",
+    "doc_id": "samk_student_guidance",
+    "page": 27,
+    "reference_answer": "The student counsellor typically takes over this responsibility from the teacher tutor, unless the degree program has arranged another method."
+  },
+  {
+    "question": "Who won the FIFA World Cup in 2022?",
+    "doc_id": null,
+    "page": null,
+    "reference_answer": "The documents do not contain this information."
+  },
+  {
+    "question": "What are the main ingredients used to bake a traditional Finnish blueberry pie?",
+    "doc_id": null,
+    "page": null,
+    "reference_answer": "The documents do not contain this information."
+  },
+  {
+    "question": "How does photosynthesis work in coniferous trees?",
+    "doc_id": null,
+    "page": null,
+    "reference_answer": "The documents do not contain this information."
+  },
+  {
+    "question": "What is the current population of the city of Oulu?",
+    "doc_id": null,
+    "page": null,
+    "reference_answer": "The documents do not contain this information."
+  }
+]
