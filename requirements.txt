@@ -1,7 +1,7 @@
 pypdf
 chromadb
+sentence-transformers>=5.2
 python-dotenv
-requests
 openai
 fastapi
 uvicorn

@@ -1,3 +1,10 @@
+> **Archived – historical MVP baseline.**
+> This document records the manual evaluation used for the v2 MVP. It has been
+> superseded by the structured evaluation workflow, which stores test questions,
+> answers, retrieved chunks, LLM-judge verdicts and human verdicts in the
+> SQLAlchemy database (see the *Evaluation* section of the [README](../../README.md)).
+> It is kept unchanged below to document the project's development.
+
 # Manual Evaluation – SAMK Guidance Handbook RAG
 
 ## Setup

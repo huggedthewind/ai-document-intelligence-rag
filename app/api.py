@@ -1,9 +1,13 @@
 """
 FastAPI wrapper around the RAG question-answering pipeline.
 
+Answers questions over all indexed documents, or only one document when
+doc_id is given. Each request is logged to the database as a Query with its
+Answer and RetrievedChunk rows.
+
 Endpoints:
 - GET /health  : basic health check
-- POST /ask    : ask a question about the SAMK guidance handbook
+- POST /ask    : ask a question; optional top_k and doc_id
 """
 
 from fastapi import FastAPI

@@ -1,302 +1,236 @@
-# AI Document Intelligence – RAG over SAMK Guidance Handbook
+# AI Document Intelligence – RAG over SAMK documents
 
-An end-to-end Retrieval-Augmented Generation (RAG) system that answers questions about  multiple SAMK-related PDFs:
+A retrieval-augmented generation (RAG) project that answers questions about
+PDF publications from Satakunta University of Applied Sciences (SAMK), with
+page references. Documents, chunks, queries, answers and evaluation results
+are stored in SQLite through SQLAlchemy 2, so the whole pipeline can be
+inspected and evaluated with SQL queries.
 
-- **Student guidance and counselling at Satakunta University of Applied Sciences**
-- **Admissions Criteria, Spring 2025**
-- **Erasmus+ Policy / Internationalisation**
+It currently uses three documents:
 
-The goal is to learn how real-world AI systems are built in practice:
-- ingest documents,
-- chunk them into meaningful units,
-- build a vector index,
-- retrieve relevant context,
-- let an LLM generate grounded answers with page references.
+| `doc_id`                | Document                                        |
+|-------------------------|-------------------------------------------------|
+| `samk_student_guidance` | Student guidance and counselling at SAMK        |
+| `samk_admissions_2025`  | Admissions criteria, spring 2025                |
+| `samk_erasmus_policy`   | Erasmus+ policy / internationalisation at SAMK  |
 
-This is an applied AI / data engineering project, not a model training project.
+## What the project demonstrates
 
----
+- Ingesting multiple PDFs: page-level text extraction and paragraph-aware chunking
+- A relational model for a RAG system in SQLAlchemy 2, with Alembic migrations
+- Semantic search with `all-MiniLM-L6-v2` embeddings stored in Chroma
+- Grounded answering with `gpt-4.1-mini`, optionally restricted to one document
+- Logging every query with its answer and ranked retrieved chunks
+- Evaluating answer groundedness and chunk relevance with an LLM judge,
+  with human corrections stored next to the judge's verdict
+- Analysing the stored results with SQLAlchemy queries
 
-## Features
+## How the pipeline works
 
-- **Multi-document support**
-  - Ingests all PDFs in `data/raw_documents/`
-  - Each chunk tagged with `doc_id`, `title`, `page`, etc.
-  - Optional `doc_id` filter for “answer only from this document”
-
-- **Ingestion**
-  - `pypdf` → page-level JSON (`pages.json`)
-  - Keeps metadata: `doc_id`, `title`, `page`, `source`, `char_count`
-
-- **Paragraph-aware chunking**
-  - Splits pages into paragraphs (blank-line separated)
-  - Groups paragraphs into chunks up to ~800 characters
-  - Preserves `char_start` / `char_end` offsets per page
-
-- **Semantic search**
-  - Embeddings via `sentence-transformers` (`all-MiniLM-L6-v2`)
-  - Local persistent vector DB with **Chroma**
-  - Noise filtering (reference lists, ISBN/ISSN/DOI/URL-heavy, very short text)
-
-- **RAG-style Q&A**
-  - CLI tool: `app/answer_question.py`
-  - LLM: `gpt-4.1-mini` via OpenAI Responses API
-  - Uses top-k chunks as context, with doc + page references
-  - Refuses to answer if context doesn’t contain the answer
-
-- **API**
-  - FastAPI app in `app/api.py`
-  - `POST /ask` endpoint for programmatic access
-  - Optional `doc_id` and `top_k` in request body
-
-- **Debugging tools**
-  - `vector_store/retrieve.py` – inspect raw top-k retrieved chunks
-  - `eval/manual_eval.md` – manual evaluation of answer quality
-
----
-
-## Architecture
-
-### High-level flow
-
-```mermaid
-flowchart TD
-    PDFs["PDFs in data/raw_documents/"]
-    ET["extract_text.py<br/>PDFs → pages.json"]
-    CP["chunk_pages.py<br/>pages → paragraph chunks.json"]
-    BI["build_index.py<br/>chunks → Chroma index"]
-    DB["Chroma (rag-chunks)"]
-    Q["User question"]
-    AQ["answer_question.py / app.api"]
-    EMB["SentenceTransformer<br/>all-MiniLM-L6-v2"]
-    CTX["Top-k chunks (optionally filtered by doc_id)"]
-    LLM["OpenAI gpt-4.1-mini"]
-    A["Grounded answer with page refs"]
-
-    PDFs --> ET --> CP --> BI --> DB
-    Q --> AQ --> EMB --> DB --> CTX --> LLM --> A
 ```
-## Dataset
-
-This project uses three documents:
-
-- **samk_student_guidance**
-Student guidance and counselling at Satakunta University of Applied Sciences
-
-- **samk_admissions_2025**
-Admissions Criteria, Spring 2025
-
-- **samk_erasmus_policy**
-Erasmus+ policy / internationalisation at SAMK
-
-**Important**:
-The PDFs are not included in this repository due to copyright.
-You can download them (or equivalent SAMK publications) and place them in:
-
-`data/raw_documents/`
-
-## Project Structure
-```bash
-ai-document-intelligence-rag/
-├── app/
-│   ├── __init__.py
-│   ├── answer_question.py   # CLI RAG Q&A
-│   └── api.py               # FastAPI app
-│
-├── data/
-│   ├── raw_documents/       # PDF goes here (only local)
-│   └── processed/
-│       ├── pages.json       # output of extract_text.py
-│       └── chunks.json      # output of chunk_pages.py
-│
-├── eval/
-│   └── manual_eval.md       # manual evaluation notes
-│
-├── ingestion/
-│   ├── extract_text.py      # PDF → pages.json
-│   └── chunk_pages.py       # pages.json → chunks.json
-│
-├── vector_store/
-│   ├── build_index.py       # chunks.json → Chroma index
-│   └── retrieve.py          # debug: inspect top-k chunks
-│
-├── .gitignore
-├── README.md
-└── requirements.txt
+PDFs ─▶ extract_text ─▶ chunk_pages ─▶ load_to_db ─▶ SQLite (documents, chunks)
+                                                        │
+                                                   build_index
+                                                        ▼
+question ─▶ embed ─▶ Chroma top-k ─▶ gpt-4.1-mini ─▶ answer with page refs
+                                                        │
+                                  logged to SQLite (queries, answers, retrieved_chunks)
 ```
+
+The chunk text and metadata live in SQLite. Chroma holds the embeddings, keyed
+by the same `chunk_id`, so every retrieved chunk can be traced back to its
+database row. Chunks that look like noise (reference lists, ISBN/DOI blocks,
+URL-heavy or very short text) are left out of the index.
+
+The answer prompt tells the model to use only the retrieved context and to say
+it cannot find the answer when the context doesn't contain it.
+
+## Database model
+
+| Table              | Purpose                                                       |
+|--------------------|---------------------------------------------------------------|
+| `documents`        | One row per PDF (`doc_id`, `title`)                           |
+| `chunks`           | Chunk text, page and character offsets; belongs to a document |
+| `test_questions`   | Evaluation questions with reference answer and expected page  |
+| `queries`          | Every question asked; linked to a test question when it is one |
+| `answers`          | Generated answer for a query                                   |
+| `retrieved_chunks` | Query ↔ chunk association with `rank`, `distance`, `relevant` |
+| `evaluations`      | One per answer: judge `verdict`, `human_verdict`, notes, judge model |
+
+`retrieved_chunks` is a many-to-many association object between `queries` and
+`chunks`, with a composite primary key. The models are in `db/models.py`, and
+the migration history is in `alembic/versions/`.
 
 ## Setup
 
-### 1. Clone and create a virtual environment
+Requires Python 3.12 and an OpenAI API key.
+
 ```bash
 git clone <your-repo-url> ai-document-intelligence-rag
 cd ai-document-intelligence-rag
 
 python -m venv venv-ai-doc-intel
 source venv-ai-doc-intel/bin/activate
-
-pip install --upgrade pip
 pip install -r requirements.txt
+
+cp .env.example .env        # then set OPENAI_API_KEY
+mkdir -p data/raw_documents # data/ is not committed
+alembic upgrade head        # creates data/samk_rag.db
 ```
 
-### 2. Configure API key
+`.env` settings:
 
-Create a .env file in the project root:
-```bash
-OPENAI_API_KEY=your_api_key_here
+- `OPENAI_API_KEY`: required
+- `DATABASE_URL`: defaults to `sqlite:///data/samk_rag.db`
+- `JUDGE_MODEL`: optional, the model used by the evaluation judges (defaults to `gpt-4.1-mini`)
+
+`sentence-transformers` installs PyTorch. On a machine without a GPU, you can
+install the CPU-only PyTorch build first to keep the download smaller.
+
+### Add the PDFs
+
+The PDFs are not included because of copyright. Download them from
+[Theseus](https://www.theseus.fi/) or SAMK and save them in
+`data/raw_documents/`. Each file name, without `.pdf`, becomes the document's
+`doc_id`, so use these names to match `--doc-id` and the test questions:
+
 ```
-
-### 3. Place the PDF
-
-Download the SAMK guidance handbook PDF from Theseus and save it as:
-```bash
 data/raw_documents/samk_student_guidance.pdf
+data/raw_documents/samk_admissions_2025.pdf
+data/raw_documents/samk_erasmus_policy.pdf
 ```
 
-## Usage
+Any other PDFs in that folder are ingested as well.
 
-### 1. Ingest the document
+## Ingestion and index building
+
+Run every command from the project root. Scripts that import the `db` package
+are run with `python -m`.
+
 ```bash
-# Extract page-level text
-python ingestion/extract_text.py
-
-# Chunk pages into overlapping text windows
-python ingestion/chunk_pages.py
+python ingestion/extract_text.py     # PDFs → data/processed/pages.json
+python ingestion/chunk_pages.py      # pages → data/processed/chunks.json (≤ ~800 chars, paragraph-aware)
+python -m ingestion.load_to_db       # chunks.json → documents + chunks tables
+python -m vector_store.build_index   # database chunks → Chroma (vector_store/chroma/)
 ```
 
-This will produce:
-- data/processed/pages.json
-- data/processed/chunks.json
+`load_to_db` skips documents that are already in the database.
+`build_index` deletes and rebuilds the Chroma collection on every run.
 
-### 2. Build the vector index
+## Asking questions
+
+CLI:
+
 ```bash
-python vector_store/build_index.py
+python app/answer_question.py "What does the UAS Exam assess?"
+python app/answer_question.py "What does the UAS Exam assess?" --doc-id samk_admissions_2025
 ```
 
-This will:
-- filter noisy chunks (references, ISBN/ISSN/DOI, URL-heavy, very short text),
-- embed each remaining chunk with all-MiniLM-L6-v2,
-- store embeddings + metadata in a persistent Chroma collection under vector_store/chroma.
+API:
 
-### 3. Inspect raw retrieval (optional)
-```bash
-python vector_store/retrieve.py
-```
-
-You can type a question and see which chunks are retrieved, with:
-- rank
-- distance
-- page number
-- chunk text snippet
-
-Useful for debugging retrieval quality.
-
-### 4. Ask questions via CLI (RAG)
-Basic usage (search across all documents):
-```bash
-python app/answer_question.py "How does SAMK use Erasmus+ to support internationalisation?"
-```
-
-Scope to a single document with --doc-id:
-```bash
-# Guidance handbook only
-python app/answer_question.py \
-  "What is the objective of this handbook?" \
-  --doc-id samk_student_guidance
-
-# Admissions criteria only
-python app/answer_question.py \
-  "What are the selection methods for the Data Engineering degree programme?" \
-  --doc-id samk_admissions_2025
-
-# Erasmus+ policy only
-python app/answer_question.py \
-  "How does SAMK use Erasmus+ to support internationalisation?" \
-  --doc-id samk_erasmus_policy
-```
-
-The script will:
-
-- embed the question,
-- retrieve top-k relevant chunks from Chroma (optionally filtered by `doc_id`),
-- build a grounded prompt (with doc + page refs),
-- call `gpt-4.1-mini`,
-- print a concise answer.
-
-If the answer is **not** in the context, it explicitly says it cannot find it in the documents.
-
-### 5. Ask questions via FastAPI
-
-Start the API server:
 ```bash
 uvicorn app.api:app --reload
 ```
 
-Then open the interactive docs:
-- http://127.0.0.1:8000/docs
+Interactive docs are at http://127.0.0.1:8000/docs. Example `POST /ask` body
+(`top_k` and `doc_id` are optional):
 
-Example request body for POST /ask:
 ```json
-{
-  "question": "What are the selection methods for the Data Engineering degree programme?",
-  "top_k": 5,
-  "doc_id": "samk_admissions_2025"
-}
-```
-Or across all documents:
-```json
-{
-  "question": "How does SAMK support students at the beginning of their studies?",
-  "top_k": 5
-}
+{ "question": "How does SAMK use Erasmus+ to support internationalisation?", "top_k": 5, "doc_id": "samk_erasmus_policy" }
 ```
 
-## Evaluation
+Each API request is stored as a query with its answer and retrieved chunks.
+The CLI only prints the answer.
 
-Manual evaluation is recorded in:
+To debug retrieval without calling the LLM, `python vector_store/retrieve.py`
+prompts for a question and prints the raw top-5 chunks with their distances.
+It is an optional diagnostic and isn't part of the answering or evaluation
+workflow.
+
+## Evaluation workflow
+
+The 25 test questions in `eval/test_questions.json` cover all three documents
+(21 questions), plus 4 out-of-scope questions that the system should refuse.
+
 ```bash
-eval/manual_eval.md
+python -m eval.load_test_questions        # JSON → test_questions (skips existing questions)
+python -m eval.run_test_questions         # answer each test question; store query, answer, retrieved chunks
+python -m eval.run_evaluations            # LLM judge: is each new answer grounded in its chunks? (yes/partial/no)
+python -m eval.run_retrieval_evaluations  # LLM judge: is each new retrieved chunk relevant?
+python -m eval.set_human_verdict <answer_id> <yes|partial|no>   # record a human correction
+python -m eval.analyze_results            # summary report
 ```
 
-It includes:
+- Test questions are answered across all documents with `top_k = 5`.
+- The two judge scripts only process rows that have not been evaluated yet,
+  so they are safe to re-run. `run_test_questions` adds a new set of queries
+  every time it runs.
+- A human verdict doesn't overwrite the judge's verdict. Both are stored, and
+  the report uses the human verdict when there is one.
+- The judges get the retrieved chunks as their only evidence and return
+  structured output (Pydantic models via the OpenAI Responses API).
 
-- questions per document,
-- short summaries of the answers,
-- verdicts (good / ok / bad),
-- notes on retrieval + answer quality,
-- a negative test (out-of-scope question → model correctly says “not in docs”).
+## Current results
 
-## Limitations and Possible Future Work
+Output of `python -m eval.analyze_results` on the current database:
 
-Current limitations:
+| Measure                                    | Result                         |
+|--------------------------------------------|--------------------------------|
+| Test questions stored                      | 25                             |
+| Executed / answered / evaluated            | 25 / 25 / 25                   |
+| Final answer verdicts (after human review) | 25 yes · 0 partial · 0 no      |
+| Retrieved chunks judged relevant           | 55 of 125 (70 irrelevant)      |
 
-- Only a **small set of PDFs** (SAMK-focused).
-- No **reranking step** beyond basic vector similarity.
-- No **automated evaluation** – only manual checks.
-- The API is minimal, and there is no separate web UI yet.
+The answer verdicts include human corrections. The judge marked 3 answers as
+`no` that were judged grounded on review and changed to `yes`; the other 22
+judge verdicts were left as they were. The chunk relevance numbers come only
+from the LLM judge and have not been reviewed by a human. Each of the 21
+in-scope questions had at least one relevant chunk in its top five. The 4
+out-of-scope questions had none, as expected, and account for 20 of the 70
+irrelevant chunks.
 
-Potential improvements:
+## Limitations
 
-- Sentence-level chunking or hybrid sentence+paragraph strategy.
-- Reranking using a cross-encoder or LLM.
-- Support for tagging / grouping documents by topic or audience.
-- Simple web UI (Streamlit or small frontend) on top of the FastAPI backend.
-- More systematic evaluation with a larger question set.
+- **SQLite** keeps the project easy to clone and run in a classroom. It is
+  not set up for concurrent writes.
+- **Chroma is a separate store.** It is rebuilt from the database, but the two
+  are not synchronised automatically.
+- **One model for generation and judging.** `gpt-4.1-mini` does both so setup
+  needs only one API key. A model judging its own kind of output can share the
+  same blind spots. `JUDGE_MODEL` can point the judges elsewhere.
+- **LLM-as-judge is not ground truth.** Its verdicts can disagree with human
+  review, as the 3 corrections above show.
+- **Prompt injection.** Retrieved documents can contain instruction-like text.
+  The judge prompts tell the model to treat chunk text as content, but this is
+  a known RAG weakness, not a solved problem.
+- **Small, project-specific dataset.** 25 questions over three documents is
+  enough to compare changes to this system, but too few to support general
+  conclusions.
+- No reranking beyond vector similarity, and no web UI.
 
-Milestones
+## Repository structure
 
-- **v1** – single-PDF RAG
-    - One handbook, fixed-size character chunks, local Chroma, CLI retrieval.
+```
+alembic/            migrations (alembic/versions/)
+app/                answer_question.py (CLI, main entry point), api.py (FastAPI)
+db/                 SQLAlchemy base, models, session
+eval/               test questions, judges, evaluation runners, analysis report
+ingestion/          extract_text.py → chunk_pages.py → load_to_db.py
+vector_store/       build_index.py, retrieve.py (optional retrieval debugging)
+docs/archive/       historical MVP evaluation
+data/               local PDFs, processed JSON, SQLite database (not committed)
+```
 
-- **v2** – multi-doc, paragraph-aware RAG
-    - Multiple SAMK PDFs, paragraph-based chunks, doc-scoped retrieval, grounded LLM answers, FastAPI endpoint, and manual evaluation.
+## Project history
 
-## Tech Stack
+The project started as a single-PDF RAG with fixed-size chunks. It then moved
+to multiple documents, paragraph-aware chunking, document-scoped retrieval and
+a FastAPI endpoint, which were checked by hand. That manual check is kept as
+the historical MVP baseline in
+[`docs/archive/manual-evaluation-baseline.md`](docs/archive/manual-evaluation-baseline.md).
+It was later replaced by the database-backed evaluation described above.
 
-- Language: **Python 3.12**
-- Ingestion: **pypdf**
-- Embeddings: **sentence-transformers** (all-MiniLM-L6-v2)
-- Vector DB: **Chroma** (persistent, local)
-- LLM: **OpenAI gpt-4.1-mini**
-- API: **FastAPI + Uvicorn**
-- Env: `venv-ai-doc-intel`
+## Tech stack
+
+Python 3.12 · pypdf · sentence-transformers (`all-MiniLM-L6-v2`) · Chroma ·
+OpenAI `gpt-4.1-mini` · SQLAlchemy 2 · Alembic · SQLite · FastAPI + Uvicorn
