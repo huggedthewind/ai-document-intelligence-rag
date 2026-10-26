@@ -36,7 +36,7 @@ class Query(BaseClass):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     test_question_id: Mapped[int | None] = mapped_column(ForeignKey("test_questions.test_question_id"))
 
-    answers: Mapped[list["Answer"]] = relationship(back_populates="query")
+    answer: Mapped["Answer | None"] = relationship(back_populates="query")
     retrieved_chunks: Mapped[list["RetrievedChunk"]] = relationship(back_populates="query")
     test_question: Mapped["TestQuestion"] = relationship(back_populates="queries")
 
@@ -45,10 +45,10 @@ class Answer(BaseClass):
     __tablename__ = "answers"
 
     answer_id: Mapped[int] = mapped_column(primary_key=True)
-    query_id: Mapped[int] = mapped_column(ForeignKey("queries.query_id"))
+    query_id: Mapped[int] = mapped_column(ForeignKey("queries.query_id"), unique=True)
     text: Mapped[str] = mapped_column(Text)
 
-    query: Mapped["Query"] = relationship(back_populates="answers")
+    query: Mapped["Query"] = relationship(back_populates="answer")
     evaluation: Mapped["Evaluation"] = relationship(back_populates="answer")
 
 class Evaluation(BaseClass):
