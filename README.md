@@ -61,6 +61,73 @@ it cannot find the answer when the context doesn't contain it.
 `chunks`, with a composite primary key. The models are in `db/models.py`, and
 the migration history is in `alembic/versions/`.
 
+```mermaid
+erDiagram
+    DOCUMENT ||--o{ CHUNK : ""
+    DOCUMENT o|--o{ QUERY : ""
+    DOCUMENT o|--o{ TEST_QUESTION : ""
+    TEST_QUESTION o|--o{ QUERY : ""
+    QUERY ||--o| ANSWER : ""
+    ANSWER ||--o| EVALUATION : ""
+    QUERY ||--o{ RETRIEVED_CHUNK : ""
+    CHUNK ||--o{ RETRIEVED_CHUNK : ""
+
+    DOCUMENT {
+        string doc_id PK
+        string title
+    }
+
+    CHUNK {
+        int chunk_id PK
+        string doc_id FK
+        int page
+        string text
+        int char_start
+        int char_end
+    }
+
+    QUERY {
+        int query_id PK
+        string text
+        string doc_id FK "nullable"
+        int top_k
+        datetime created_at
+        int test_question_id FK "nullable"
+    }
+
+    ANSWER {
+        int answer_id PK
+        int query_id FK
+        string text
+    }
+
+    EVALUATION {
+        int evaluation_id PK
+        int answer_id FK
+        string verdict
+        string human_verdict "nullable"
+        string notes
+        string judge_model
+        datetime created_at
+    }
+
+    RETRIEVED_CHUNK {
+        int query_id PK, FK
+        int chunk_id PK, FK
+        int rank
+        float distance
+        boolean relevant "nullable"
+    }
+
+    TEST_QUESTION {
+        int test_question_id PK
+        string question
+        string doc_id FK "nullable"
+        int page "nullable"
+        string reference_answer
+    }
+```
+
 ## Setup
 
 Requires Python 3.12 and an OpenAI API key.
