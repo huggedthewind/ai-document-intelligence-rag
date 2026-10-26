@@ -25,6 +25,7 @@ class Document(BaseClass):
 
     chunks: Mapped[list["Chunk"]] = relationship(back_populates="document")
     test_questions: Mapped[list["TestQuestion"]] = relationship(back_populates="document")
+    queries: Mapped[list["Query"]] = relationship(back_populates="document")
 
 class Query(BaseClass):
     __tablename__ = "queries"
@@ -38,7 +39,8 @@ class Query(BaseClass):
 
     answer: Mapped["Answer | None"] = relationship(back_populates="query")
     retrieved_chunks: Mapped[list["RetrievedChunk"]] = relationship(back_populates="query")
-    test_question: Mapped["TestQuestion"] = relationship(back_populates="queries")
+    test_question: Mapped["TestQuestion | None"] = relationship(back_populates="queries")
+    document: Mapped["Document | None"] = relationship(back_populates="queries")
 
 
 class Answer(BaseClass):
@@ -49,7 +51,7 @@ class Answer(BaseClass):
     text: Mapped[str] = mapped_column(Text)
 
     query: Mapped["Query"] = relationship(back_populates="answer")
-    evaluation: Mapped["Evaluation"] = relationship(back_populates="answer")
+    evaluation: Mapped["Evaluation | None"] = relationship(back_populates="answer")
 
 class Evaluation(BaseClass):
     __tablename__ = "evaluations"
@@ -85,5 +87,5 @@ class TestQuestion(BaseClass):
     page: Mapped[int | None] = mapped_column()
     reference_answer: Mapped[str] = mapped_column(Text)
 
-    document: Mapped["Document"] = relationship(back_populates="test_questions")
+    document: Mapped["Document | None"] = relationship(back_populates="test_questions")
     queries: Mapped[list["Query"]] = relationship(back_populates="test_question")
